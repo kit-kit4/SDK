@@ -30,10 +30,10 @@ BANNER = r"""
 ║    ╚═════╝ ╚═════╝ ╚═╝  ╚═══╝      ╚══════╝╚═════╝ ╚═╝  ╚═╝      ║
 ║                                                                  ║
 ║              Ukrainian Bot Network - SDK v0.3.1                  ║
-║        Open network for Ukrainian bots and services              ║
+║        Open network for Ukrainian bots and services              ║ 
 ╚══════════════════════════════════════════════════════════════════╝
 """
-
+ 
 
 @click.group()
 @click.pass_context
