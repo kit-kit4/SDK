@@ -9,6 +9,8 @@ from rich.table import Table
 from rich.panel import Panel
 from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich import box
+from rich.text import Text
+from rich.align import Align
 
 from .client import AsyncUBN
 from .config import Config
@@ -16,7 +18,23 @@ from .exceptions import UBNError, UBNAuthError, UBNRateLimitError
 from .utils import console, print_error, print_success, print_warning, print_info
 
 
-# ---------- Група команд ----------
+# ---------- Банер (як у PM2) ----------
+BANNER = r"""
+╔══════════════════════════════════════════════════════════════════╗
+║                                                                  ║
+║   ██╗   ██╗██████╗ ███╗   ██╗      ███████╗██████╗ ██╗  ██╗   ║
+║   ██║   ██║██╔══██╗████╗  ██║      ██╔════╝██╔══██╗██║ ██╔╝   ║
+║   ██║   ██║██████╔╝██╔██╗ ██║█████╗███████╗██║  ██║█████╔╝    ║
+║   ██║   ██║██╔══██╗██║╚██╗██║╚════╝╚════██║██║  ██║██╔═██╗    ║
+║   ╚██████╔╝██████╔╝██║ ╚████║      ███████║██████╔╝██║  ██╗   ║
+║    ╚═════╝ ╚═════╝ ╚═╝  ╚═══╝      ╚══════╝╚═════╝ ╚═╝  ╚═╝   ║
+║                                                                  ║
+║              Ukrainian Bot Network - SDK v0.3.1                  ║
+║        Open network for Ukrainian bots and services              ║
+╚══════════════════════════════════════════════════════════════════╝
+"""
+
+
 @click.group()
 @click.pass_context
 def cli(ctx):
@@ -28,32 +46,41 @@ def cli(ctx):
 
 # ---------- init ----------
 @cli.command()
-@click.option('--base-url', default=None, help='UBN API base URL')
-def init(base_url):
-    """Interactive registration."""
-    # Welcome
+@click.option('--base-url', default=None, help='UBN API base URL (without /net)')
+@click.option('--username', help='Telegram username (for telegram bots only)')
+@click.option('--owner', help='Telegram owner ID (for telegram bots only)')
+def init(base_url, username, owner):
+    """Interactive registration with style."""
+    console.print(BANNER)
     console.print(Panel(
-        "[bold]UBN Registration[/bold]\n"
-        "Your bot will publish presence in chats and see other bots.",
-        border_style="cyan"
+        "[bold cyan]What is UBN?[/bold cyan]\n"
+        "Ukrainian Bot Network allows bots to share presence in chats,\n"
+        "discover each other, and build integrations without sharing\n"
+        "sensitive data. You control what you publish.",
+        border_style="cyan",
+        width=80
     ))
 
-    # Base URL
+    # Base URL – нормалізуємо (прибираємо /net якщо є)
     if not base_url:
-        base_url = input("API URL (default: https://kit.felixcard.online/net): ").strip()
-        if not base_url:
-            base_url = "https://kit.felixcard.online/net"
+        default_url = "https://kit.felixcard.online"
+        url_input = input(f"API URL (default: {default_url}): ").strip()
+        base_url = url_input if url_input else default_url
+    base_url = base_url.rstrip("/")
+    if base_url.endswith("/net"):
+        base_url = base_url[:-4]
 
     # Bot name
+    console.print("\n[bold]Step 1: Bot Identity[/bold]")
     name = input("Bot name: ").strip()
     while not name:
         print_error("Name cannot be empty.")
         name = input("Bot name: ").strip()
 
     # Bot type
-    print("\nBot type:")
-    print("  1 - Telegram bot (works in chats)")
-    print("  2 - Service/application (not Telegram)")
+    console.print("\n[bold]Step 2: Bot Type[/bold]")
+    console.print("  1 - [cyan]Telegram bot[/cyan] (works in chats)")
+    console.print("  2 - [cyan]Service[/cyan] (backend, API, etc.)")
     while True:
         type_choice = input("Choose 1 or 2: ").strip()
         if type_choice == "1":
@@ -65,11 +92,21 @@ def init(base_url):
         else:
             print_error("Invalid choice. Enter 1 or 2.")
 
+    # For telegram, ask for username/owner (optional)
+    if app_type == "telegram":
+        if not username:
+            username = input("Telegram username (optional, e.g. @mybot): ").strip() or None
+        if not owner:
+            owner = input("Your Telegram ID (optional): ").strip() or None
+    else:
+        username = None
+        owner = None
+
     # Access level
-    print("\nAccess level (what you publish):")
-    print("  1 - Presence: activity only (0-100)")
-    print("  2 - Shared Data: activity + extra stats")
-    print("  3 - Custom Integration: full custom data (up to 2KB)")
+    console.print("\n[bold]Step 3: Access Level[/bold]")
+    console.print("  [cyan]1[/cyan] - Presence: activity only (0-100)")
+    console.print("  [cyan]2[/cyan] - Shared Data: activity + extra stats")
+    console.print("  [cyan]3[/cyan] - Custom Integration: full custom data (up to 2KB)")
     while True:
         level_choice = input("Choose 1, 2 or 3: ").strip()
         if level_choice in ("1", "2", "3"):
@@ -78,20 +115,20 @@ def init(base_url):
         else:
             print_error("Invalid choice. Enter 1, 2 or 3.")
 
-    # Optional fields (skip with Enter)
-    bot_username = input("Telegram username (optional, e.g. @mybot): ").strip() or None
-    owner_id = input("Your Telegram ID (optional): ").strip() or None
-
-    # Confirmation
-    print("\nReview:")
-    console.print(f"  Name: {name}")
-    console.print(f"  Type: {app_type}")
-    console.print(f"  Level: {default_level}")
-    if bot_username:
-        console.print(f"  Username: {bot_username}")
-    if owner_id:
-        console.print(f"  Owner ID: {owner_id}")
-    console.print(f"  API URL: {base_url}")
+    # Review
+    console.print("\n[bold cyan]Review[/bold cyan]")
+    review = Table(box=box.ROUNDED, show_header=False)
+    review.add_column("Field", style="bold")
+    review.add_column("Value")
+    review.add_row("Name", name)
+    review.add_row("Type", app_type)
+    review.add_row("Level", str(default_level))
+    if username:
+        review.add_row("Username", username)
+    if owner:
+        review.add_row("Owner ID", owner)
+    review.add_row("API URL", base_url)
+    console.print(review)
 
     confirm = input("\nProceed? (y/n): ").strip().lower()
     if confirm != 'y':
@@ -108,8 +145,8 @@ def init(base_url):
                         name=name,
                         app_type=app_type,
                         default_level=default_level,
-                        bot_username=bot_username,
-                        owner_telegram_id=owner_id,
+                        bot_username=username,
+                        owner_telegram_id=owner,
                         save_config=True,
                     )
                     progress.update(task, completed=1)
@@ -120,10 +157,14 @@ def init(base_url):
 
     try:
         result = asyncio.run(_register())
-        print_success("Registration successful!")
-        console.print(f"Public ID: {result['publicId']}")
-        console.print(f"API Key: [yellow]{result['apiKey']}[/yellow] (save it!)")
+        console.print("\n[bold green]Registration successful![/bold green]")
+        console.print(f"[bold]Public ID:[/bold] [cyan]{result['publicId']}[/cyan]")
+        console.print(f"[bold]API Key:[/bold] [yellow]{result['apiKey']}[/yellow] [dim](save it!)[/dim]")
         console.print("[dim]Config saved to .ubn/config.json and .env[/dim]")
+        console.print("\n[bold]Next steps:[/bold]")
+        console.print("  - Check your profile: [cyan]ubn info[/cyan]")
+        console.print("  - Publish presence: [cyan]ubn presence publish --chat chatId:level:data[/cyan]")
+        console.print("  - See docs: [cyan]https://t.me/UaBotNetwork[/cyan]")
     except UBNError as e:
         print_error(f"Registration error: {e}")
     except Exception as e:
