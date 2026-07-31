@@ -40,9 +40,9 @@ def init(base_url):
 
     # Base URL
     if not base_url:
-        base_url = input("API URL (default: https://api.ubn.local): ").strip()
+        base_url = input("API URL (default: https://kit.felixcard.online/net): ").strip()
         if not base_url:
-            base_url = "https://api.ubn.local"
+            base_url = "https://kit.felixcard.online/net"
 
     # Bot name
     name = input("Bot name: ").strip()
